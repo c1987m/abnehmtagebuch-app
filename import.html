@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Daten Import</title>
+<style>
+body { font-family: system-ui; max-width: 600px; margin: 40px auto; padding: 20px; background: #F0F4F8; }
+.card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.btn { background: #1D9E75; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; }
+.btn:disabled { opacity: 0.5; }
+.log { background: #F0F4F8; border-radius: 8px; padding: 12px; font-size: 13px; font-family: monospace; max-height: 300px; overflow-y: auto; margin-top: 12px; }
+.ok { color: #0F6E56; } .err { color: #D85A30; } .info { color: #534AB7; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2 style="color:#1D9E75;margin-bottom:8px">📥 Historische Daten importieren</h2>
+  <p style="color:#6B7280;font-size:14px;margin-bottom:16px">Importiert alle 71 Einträge (22.03.–31.05.2026) in deine Supabase-Datenbank.</p>
+  <button class="btn" id="importBtn" onclick="startImport()">Import starten</button>
+  <div class="log" id="log" style="display:none"></div>
+</div>
+<script>
+const SUPABASE_URL = 'https://wkgidygxinqxmwijnhca.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-bV65Upnu7X5cQuHx3s0FQ__Z5EUWve';
+
+const DATA = [
+  {datum:'2026-03-22',gewicht:135.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Eierspeis',mittagessen:'Nudeln mit Tomatensauce',nachmittagssnack:null,abendessen:'Wurstsalat beim Heurigen',notiz:'Letzter Tag vor Mounjaroeinnahme'},
+  {datum:'2026-03-23',gewicht:134.0,mounjaro:true,mounjaro_dosis:'2,5 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kornspitz mit Liptaueraufstrich',nachmittagssnack:null,abendessen:'Nudeln mit Tomatensauce',notiz:'1. Injektion 2,5 mg – murriges Gefühl'},
+  {datum:'2026-03-24',gewicht:133.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Skyrjoghurt mit Beeren u. Müsli',nachmittagssnack:'Proteinriegel Barbells',abendessen:'Klare Suppe, Toast mit Hüttenkäse',notiz:null},
+  {datum:'2026-03-25',gewicht:132.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Schinkenkäsetoast mit Salat',nachmittagssnack:'Proteinriegel Barbells',abendessen:'Caesar-Huhn-Wrap',notiz:null},
+  {datum:'2026-03-26',gewicht:131.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Pizza mit Rohschinken',nachmittagssnack:null,abendessen:'Halbes Kotelett mit Gemüse',notiz:'Abends Reste vom Sohn gegessen'},
+  {datum:'2026-03-27',gewicht:130.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kornspitz mit Neuburger u. Emmentaler',nachmittagssnack:'Proteinriegel Fulfill + Apfel',abendessen:null,notiz:null},
+  {datum:'2026-03-28',gewicht:131.1,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Spaghetti Bolognese',nachmittagssnack:null,abendessen:'Jause',notiz:null},
+  {datum:'2026-03-29',gewicht:130.7,mounjaro:true,mounjaro_dosis:'2,5 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Schinkenfleckerl',nachmittagssnack:'Obstjause',abendessen:'Jause',notiz:'2. Injektion 2,5 mg'},
+  {datum:'2026-03-30',gewicht:130.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kornspitz mit Liptaueraufstrich',nachmittagssnack:'Proteinriegel Fulfill + Apfel',abendessen:'Fritattensuppe',notiz:null},
+  {datum:'2026-03-31',gewicht:129.9,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Bosna mit Krautsalat',nachmittagssnack:null,abendessen:'Jause',notiz:null},
+  {datum:'2026-04-01',gewicht:130.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Naturschnitzerl mit Reis',nachmittagssnack:'Proteinriegel Fulfill',abendessen:null,notiz:null},
+  {datum:'2026-04-02',gewicht:131.1,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kornspitz mit Neuburger u. Emmentaler',nachmittagssnack:'Proteinriegel Fulfill + Apfel',abendessen:'Spiegeleier, Rösterdäpfel, Spinat',notiz:'Gründonnerstag'},
+  {datum:'2026-04-03',gewicht:130.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'nichts',nachmittagssnack:'Kekse',abendessen:'Selbstgemachte Pizza',notiz:'Karfreitag – Gartenarbeit'},
+  {datum:'2026-04-04',gewicht:130.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Tiefkühl-Frühlingsrolle',nachmittagssnack:'Kuchen',abendessen:'Gegrillte Hühnerfilets u. Gemüse',notiz:'Karsamstag'},
+  {datum:'2026-04-05',gewicht:129.7,mounjaro:true,mounjaro_dosis:'2,5 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Lachsfilets mit Letscho',nachmittagssnack:'Kuchen',abendessen:'Jause (Brot mit Bergkäse)',notiz:'3. Injektion 2,5 mg – Ostersonntag'},
+  {datum:'2026-04-06',gewicht:129.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Gegrilltes Lamm mit Gemüse',nachmittagssnack:'Kuchen',abendessen:'Jause (Brote, Aufstrich, Schinken, Käse)',notiz:'Ostermontag'},
+  {datum:'2026-04-07',gewicht:129.4,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Hotdog',nachmittagssnack:null,abendessen:'Jause',notiz:null},
+  {datum:'2026-04-08',gewicht:129.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'1/2 Putenschnitzel mit Salat',nachmittagssnack:'Proteinriegel Barbells',abendessen:'nichts',notiz:null},
+  {datum:'2026-04-09',gewicht:129.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Wrap mit Hühnerfleisch u. Chili',nachmittagssnack:null,abendessen:'Jause',notiz:null},
+  {datum:'2026-04-10',gewicht:129.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'nichts',nachmittagssnack:'Knoblauchstangerl',abendessen:'Heurigenjause',notiz:null},
+  {datum:'2026-04-11',gewicht:129.4,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:'Gegrilltes Rindfleisch mit Erdäpfel',notiz:null},
+  {datum:'2026-04-12',gewicht:129.5,mounjaro:true,mounjaro_dosis:'2,5 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Rehragout mit Spätzle',nachmittagssnack:'Kuchen',abendessen:'Jause (2 Brote Bergkäse + Knabbossi)',notiz:'4. Injektion 2,5 mg'},
+  {datum:'2026-04-13',gewicht:129.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kornspitz mit Neuburger u. Emmentaler',nachmittagssnack:null,abendessen:null,notiz:null},
+  {datum:'2026-04-14',gewicht:129.3,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Hühnerstreifen mit Coleslaw u. Brot',nachmittagssnack:'Proteinriegel More',abendessen:'6 Minibratwürste, 2 EL Erdäpfelpüree',notiz:'16:8 Intervallfasten (12–20 Uhr)'},
+  {datum:'2026-04-15',gewicht:129.1,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Eierspeis mit Schwarzbrot u. Frischkäse',nachmittagssnack:'Proteinriegel',abendessen:null,notiz:null},
+  {datum:'2026-04-16',gewicht:129.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:'Proteinriegel',abendessen:'Schinkenfleckerl',notiz:null},
+  {datum:'2026-04-17',gewicht:129.3,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kornspitz mit Schweinsbraten',nachmittagssnack:null,abendessen:'Selbstgemachte Pizza',notiz:'Schwere Gartenarbeit'},
+  {datum:'2026-04-18',gewicht:129.1,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Saibling mit Bandnudeln',nachmittagssnack:'1 Kugel Graumohneis',abendessen:'Rindfleischsulz mit Salat',notiz:'Klassentreffen, viel Wein'},
+  {datum:'2026-04-19',gewicht:128.6,mounjaro:true,mounjaro_dosis:'2,5 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Eierspeis mit Schwarzbrot',nachmittagssnack:null,abendessen:'Rindfleischsalat mit Käferbohnen',notiz:'5. Injektion 2,5 mg (letzter Pen)'},
+  {datum:'2026-04-20',gewicht:129.3,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kartoffelpuffer mit Gemüse',nachmittagssnack:null,abendessen:'Gnocchi mit Spargel',notiz:null},
+  {datum:'2026-04-21',gewicht:128.9,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Hühnerwrap (Billa)',nachmittagssnack:'Beerenmix',abendessen:'Schinkenfleckerl (kleine Portion)',notiz:null},
+  {datum:'2026-04-22',gewicht:127.9,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:null,notiz:null},
+  {datum:'2026-04-23',gewicht:128.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:null,notiz:null},
+  {datum:'2026-04-24',gewicht:128.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Schnitzerl mit Salat',nachmittagssnack:null,abendessen:'Selbstgemachte Pizza',notiz:'Übergabe Bauvorhaben Grillgasse'},
+  {datum:'2026-04-25',gewicht:null,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Halbpension',nachmittagssnack:null,abendessen:'Halbpension',notiz:'Urlaub Südtirol'},
+  {datum:'2026-04-26',gewicht:null,mounjaro:true,mounjaro_dosis:'5,0 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Halbpension',nachmittagssnack:null,abendessen:'Halbpension',notiz:'1. Injektion 5,0 mg – Südtirol'},
+  {datum:'2026-04-27',gewicht:null,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Halbpension',nachmittagssnack:null,abendessen:'Halbpension',notiz:'Urlaub Südtirol'},
+  {datum:'2026-04-28',gewicht:null,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Halbpension',nachmittagssnack:null,abendessen:'Halbpension',notiz:'Urlaub Südtirol'},
+  {datum:'2026-04-29',gewicht:null,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Halbpension',nachmittagssnack:null,abendessen:'Halbpension',notiz:'Urlaub Südtirol'},
+  {datum:'2026-04-30',gewicht:null,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Halbpension',nachmittagssnack:null,abendessen:'Halbpension',notiz:'Urlaub Südtirol'},
+  {datum:'2026-05-01',gewicht:null,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Halbpension',nachmittagssnack:null,abendessen:'Halbpension',notiz:'Urlaub Südtirol'},
+  {datum:'2026-05-02',gewicht:128.2,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:'Kaffee und Kuchen',abendessen:'Flammkuchen',notiz:'Einladung bei Matthias und Denise'},
+  {datum:'2026-05-03',gewicht:128.4,mounjaro:true,mounjaro_dosis:'5,0 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:null,notiz:'2. Injektion 5,0 mg'},
+  {datum:'2026-05-04',gewicht:127.8,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Jause (Joghurt + Kornspitz Eiaufstrich)',nachmittagssnack:null,abendessen:'More Proteinriegel',notiz:null},
+  {datum:'2026-05-05',gewicht:127.4,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Chinesisch (Hollabrunn)',nachmittagssnack:null,abendessen:'Salat mit Thunfisch',notiz:null},
+  {datum:'2026-05-06',gewicht:127.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Schnitzel (Pute) mit Salat',nachmittagssnack:'More Proteinriegel',abendessen:null,notiz:null},
+  {datum:'2026-05-07',gewicht:126.4,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Spargelsuppe u. Spargel mit Schinken',nachmittagssnack:null,abendessen:'Gefüllte Wraps (Hühnerfleisch)',notiz:null},
+  {datum:'2026-05-08',gewicht:126.4,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Wrap mit Hühnerfleisch u. Chili',nachmittagssnack:null,abendessen:'Selbstgemachte Pizza',notiz:null},
+  {datum:'2026-05-09',gewicht:126.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Salat mit Thunfisch',nachmittagssnack:null,abendessen:'Grillen bei Wenningers',notiz:'Einladung bei Wenningers'},
+  {datum:'2026-05-10',gewicht:126.6,mounjaro:true,mounjaro_dosis:'5,0 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Jause',nachmittagssnack:'Kaffee und Kuchen',abendessen:'Gulasch mit Semmel',notiz:'3. Injektion 5,0 mg – Muttertag'},
+  {datum:'2026-05-11',gewicht:126.5,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Jause mit Wurstsalat',nachmittagssnack:null,abendessen:'Salat mit Schinken und Käse',notiz:null},
+  {datum:'2026-05-12',gewicht:126.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Bratwürstel mit Krautsalat',nachmittagssnack:null,abendessen:'Schinkenfleckerl',notiz:null},
+  {datum:'2026-05-13',gewicht:125.9,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:'More Proteinriegel',abendessen:null,notiz:null},
+  {datum:'2026-05-14',gewicht:126.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Spinatknödel',nachmittagssnack:'Kaffee und Kuchen',abendessen:'Gulasch mit Semmel (kleine Portion)',notiz:'Feiertag – Erstkommunion Johanna'},
+  {datum:'2026-05-15',gewicht:126.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:'Selbstgemachte Pizza',notiz:'Fenstertag'},
+  {datum:'2026-05-16',gewicht:126.0,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Kornspitz mit Schinken und Käse',nachmittagssnack:null,abendessen:'Jause',notiz:'Trainachers zu Besuch'},
+  {datum:'2026-05-17',gewicht:null,mounjaro:true,mounjaro_dosis:'5,0 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Grillen bei Schwiegereltern',nachmittagssnack:'Kaffee und Kuchen',abendessen:'Jause',notiz:'4. Injektion 5,0 mg – Geburtstag Mama'},
+  {datum:'2026-05-18',gewicht:125.4,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:null,notiz:null},
+  {datum:'2026-05-19',gewicht:124.9,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Belegte Brötchen',nachmittagssnack:null,abendessen:null,notiz:'Spatenstichfeier Purkersdorf – Meilenstein 125 kg!'},
+  {datum:'2026-05-20',gewicht:124.7,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Schnitzel (Pute) mit Salat',nachmittagssnack:null,abendessen:'Gulasch mit Semmel (1 Suppenteller)',notiz:null},
+  {datum:'2026-05-21',gewicht:125.3,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Mittagsjause mit Wurstsalat in Firma',nachmittagssnack:null,abendessen:null,notiz:null},
+  {datum:'2026-05-22',gewicht:125.8,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:'Hausgemachte Pizza',notiz:null},
+  {datum:'2026-05-23',gewicht:124.9,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Grillen mit Familie',nachmittagssnack:null,abendessen:'Jause',notiz:null},
+  {datum:'2026-05-24',gewicht:125.0,mounjaro:true,mounjaro_dosis:'7,5 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Erdäpfelauflauf',nachmittagssnack:'More Proteinriegel',abendessen:'Jause',notiz:'1. Injektion 7,5 mg'},
+  {datum:'2026-05-25',gewicht:null,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Spargel Tonnato',nachmittagssnack:null,abendessen:'Jause',notiz:'Feiertag'},
+  {datum:'2026-05-26',gewicht:125.2,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Schinken-Käse-Toast',nachmittagssnack:null,abendessen:'Steak mit Spargel und Salat',notiz:'Abendessen mit Geschäftspartner + Alkohol'},
+  {datum:'2026-05-27',gewicht:125.2,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Ham and Eggs',nachmittagssnack:'Eis (2 Kugeln)',abendessen:'Halber Teller Kaiserschmarren',notiz:null},
+  {datum:'2026-05-28',gewicht:124.4,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Salat mit Putenstreifen',nachmittagssnack:null,abendessen:'Pizza mit Parmaschinken',notiz:null},
+  {datum:'2026-05-29',gewicht:124.3,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:null,nachmittagssnack:null,abendessen:'Salat mit Schinken, Käse u. Champignons',notiz:null},
+  {datum:'2026-05-30',gewicht:123.9,mounjaro:false,mounjaro_dosis:null,fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Steak Dürüm',nachmittagssnack:null,abendessen:null,notiz:null},
+  {datum:'2026-05-31',gewicht:123.8,mounjaro:true,mounjaro_dosis:'7,5 mg',fruehstueck:'Joghurt mit Akazienfasern',mittagessen:'Rinder-Geschnetzeltes im Burgerbun',nachmittagssnack:'Eiskaffee',abendessen:'Jause',notiz:'2. Injektion 7,5 mg'},
+];
+
+function log(msg, cls='info') {
+  const el = document.getElementById('log');
+  el.style.display='block';
+  el.innerHTML += `<div class="${cls}">${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function startImport() {
+  const btn = document.getElementById('importBtn');
+  btn.disabled = true; btn.textContent = 'Importiere...';
+  log('🚀 Starte Import von ' + DATA.length + ' Einträgen...');
+  let ok=0, err=0;
+  for (const row of DATA) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/tageseintrag`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(row)
+      });
+      if (r.ok || r.status===201 || r.status===204) {
+        log(`✅ ${row.datum} (${row.gewicht ? row.gewicht+'kg' : 'kein Gewicht'})`, 'ok');
+        ok++;
+      } else {
+        const txt = await r.text();
+        log(`❌ ${row.datum}: ${txt}`, 'err'); err++;
+      }
+    } catch(e) {
+      log(`❌ ${row.datum}: ${e.message}`, 'err'); err++;
+    }
+  }
+  log(`\n✅ Import abgeschlossen: ${ok} erfolgreich, ${err} Fehler`, ok===DATA.length?'ok':'err');
+  btn.textContent = 'Import abgeschlossen!';
+}
+</script>
+</body>
+</html>
