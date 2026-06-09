@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abnehmtagebuch – Bericht</title>
+<style>
+/* ── SCREEN STYLES ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #F0F4F8; color: #2D3142; }
+
+.screen-only { }
+.print-only { display: none; }
+
+.topbar { background: #1D9E75; color: white; padding: 16px 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(29,158,117,0.3); }
+.topbar h1 { font-size: 18px; font-weight: 700; }
+.topbar p { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+
+.container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+.filter-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.filter-title { font-size: 14px; font-weight: 700; color: #2D3142; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.filter-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.filter-group { display: flex; flex-direction: column; gap: 6px; }
+.filter-group label { font-size: 12px; font-weight: 600; color: #6B7280; }
+.filter-group input { padding: 10px 14px; border: 1.5px solid #E5E7EB; border-radius: 8px; font-size: 14px; outline: none; }
+.filter-group input:focus { border-color: #1D9E75; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: #1D9E75; color: white; }
+.btn-primary:hover { background: #0F6E56; }
+.btn-secondary { background: #F5F6FA; color: #2D3142; border: 1px solid #E5E7EB; }
+.btn-print { background: #534AB7; color: white; }
+.btn-print:hover { background: #3d3690; }
+
+.loading { text-align: center; padding: 60px; color: #6B7280; font-size: 15px; }
+.spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #E1F5EE; border-top-color: #1D9E75; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 10px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── REPORT STYLES (screen + print) ── */
+.report { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+
+.report-header { background: #1D9E75; color: white; padding: 24px 28px; display: flex; justify-content: space-between; align-items: flex-start; }
+.report-header-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.report-header-sub { font-size: 13px; opacity: 0.85; line-height: 1.6; }
+.report-header-right { text-align: right; font-size: 12px; opacity: 0.9; line-height: 1.7; }
+
+.section { padding: 20px 28px; border-bottom: 1px solid #E5E7EB; }
+.section:last-child { border-bottom: none; }
+
+.section-header { display: flex; align-items: center; gap: 10px; background: #1D9E75; color: white; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; }
+.section-header.coral { background: #D85A30; }
+.section-header.violet { background: #534AB7; }
+.section-header.dark { background: #0F6E56; }
+.section-header.amber { background: #EF9F27; }
+.section-header-icon { font-size: 15px; }
+.section-header-title { font-size: 13px; font-weight: 700; }
+.section-header-sub { font-size: 11px; opacity: 0.85; margin-left: auto; }
+
+/* METRICS */
+.metrics-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 4px; }
+.metric-box { background: #F5F6FA; border-radius: 8px; padding: 10px 8px; text-align: center; }
+.metric-box.highlight { background: #E1F5EE; }
+.metric-val { font-size: 18px; font-weight: 700; color: #0F6E56; line-height: 1; }
+.metric-lbl { font-size: 10px; color: #6B7280; margin-top: 3px; line-height: 1.3; }
+
+/* CHART */
+.chart-container { width: 100%; height: 180px; position: relative; margin-bottom: 6px; }
+canvas { width: 100% !important; }
+.chart-legend { font-size: 11px; color: #6B7280; text-align: center; margin-top: 4px; }
+
+/* PROGNOSE */
+.prognose-box { background: linear-gradient(135deg, #1D9E75, #0F6E56); border-radius: 10px; padding: 14px 18px; color: white; display: flex; align-items: center; gap: 20px; }
+.prognose-item { text-align: center; }
+.prognose-val { font-size: 20px; font-weight: 700; }
+.prognose-lbl { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+.prognose-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.3); }
+
+/* TABLES */
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { background: #1D9E75; color: white; padding: 7px 8px; text-align: left; font-size: 11px; font-weight: 600; }
+.th-coral { background: #D85A30 !important; }
+.th-violet { background: #534AB7 !important; }
+.th-dark { background: #0F6E56 !important; }
+td { padding: 6px 8px; border-bottom: 1px solid #F0F4F8; vertical-align: top; line-height: 1.4; }
+tr:nth-child(even) td { background: #F9FAFB; }
+tr.inj-row td { background: #FAECE7 !important; }
+tr.milestone-done td { background: #E1F5EE !important; }
+tr.milestone-next td { background: #EEEDFE !important; }
+.teal { color: #0F6E56; font-weight: 600; }
+.coral { color: #D85A30; font-weight: 600; }
+.violet { color: #534AB7; font-weight: 600; }
+.gray { color: #9CA3AF; }
+.badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+.badge-green { background: #E1F5EE; color: #0F6E56; }
+.badge-coral { background: #FAECE7; color: #D85A30; }
+.badge-violet { background: #EEEDFE; color: #534AB7; }
+.badge-gray { background: #F5F6FA; color: #6B7280; }
+
+/* DISCLAIMER */
+.disclaimer { background: #F5F6FA; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px 16px; font-size: 11px; color: #6B7280; line-height: 1.6; margin-top: 4px; }
+
+/* ── PRINT STYLES ── */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: white !important; font-size: 11px; }
+  .screen-only { display: none !important; }
+  .print-only { display: block !important; }
+  .topbar { display: none; }
+  .container { padding: 0; max-width: 100%; }
+  .filter-card { display: none; }
+  .report { box-shadow: none; border-radius: 0; }
+  .section { padding: 12px 20px; }
+  .report-header { padding: 16px 20px; }
+  .metrics-grid { grid-template-columns: repeat(6,1fr); }
+  .metric-val { font-size: 14px; }
+  canvas { max-height: 140px !important; }
+  .prognose-box { padding: 10px 14px; }
+  .prognose-val { font-size: 16px; }
+  table { font-size: 10px; }
+  td, th { padding: 4px 6px; }
+  @page { margin: 12mm 10mm; size: A4; }
+  .page-break { page-break-before: always; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar screen-only">
+  <h1>📊 Bericht erstellen</h1>
+  <p>Wähle einen Zeitraum und exportiere deinen Bericht als PDF</p>
+</div>
+
+<div class="container">
+
+  <!-- FILTER -->
+  <div class="filter-card screen-only">
+    <div class="filter-title">📅 Zeitraum wählen</div>
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Von</label>
+        <input type="date" id="f-von" value="2026-03-22">
+      </div>
+      <div class="filter-group">
+        <label>Bis</label>
+        <input type="date" id="f-bis">
+      </div>
+      <button class="btn btn-secondary" onclick="setFullRange()">Gesamter Zeitraum</button>
+      <button class="btn btn-primary" onclick="generateReport()">📊 Bericht erstellen</button>
+      <button class="btn btn-print" onclick="window.print()" id="print-btn" style="display:none">🖨️ Als PDF speichern</button>
+    </div>
+  </div>
+
+  <!-- REPORT -->
+  <div id="report-area">
+    <div class="loading">
+      <span class="spinner"></span> Daten werden geladen...
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://wkgidygxinqxmwijnhca.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-bV65Upnu7X5cQuHx3s0FQ__Z5EUWve';
+
+const MILESTONES = [
+  {kg:130, label:'Erster Meilenstein!', icon:'🥉'},
+  {kg:125, label:'Zweiter Meilenstein!', icon:'🥈'},
+  {kg:120, label:'Stark unterwegs!', icon:'🥇'},
+  {kg:115, label:'20 kg – unglaublich!', icon:'💪'},
+  {kg:110, label:'Halbzeit fast erreicht!', icon:'🔥'},
+  {kg:105, label:'30 kg weniger – WOW!', icon:'⭐'},
+  {kg:100, label:'Nur noch 1 kg!', icon:'🌟'},
+  {kg:99,  label:'ZIEL ERREICHT! Zweistellig!', icon:'🏆'},
+];
+
+const MONTHS = ['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const DAYS = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+
+let allData = [];
+let chartInst = null;
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso+'T12:00:00');
+  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+}
+function toISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getKW(iso) {
+  const d = new Date(iso+'T12:00:00');
+  const start = new Date(d.getFullYear(),0,1);
+  return Math.ceil(((d-start)/86400000+start.getDay()+1)/7);
+}
+
+async function loadData() {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/tageseintrag?order=datum.asc&select=*`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  allData = await r.json();
+}
+
+function setFullRange() {
+  if (!allData.length) return;
+  document.getElementById('f-von').value = allData[0].datum;
+  document.getElementById('f-bis').value = allData[allData.length-1].datum;
+}
+
+function generateReport() {
+  const von = document.getElementById('f-von').value;
+  const bis = document.getElementById('f-bis').value;
+  if (!von || !bis) { alert('Bitte Von und Bis Datum eingeben!'); return; }
+  const filtered = allData.filter(d => d.datum >= von && d.datum <= bis);
+  if (!filtered.length) { document.getElementById('report-area').innerHTML = '<div class="loading">Keine Daten im gewählten Zeitraum.</div>'; return; }
+  renderReport(filtered, von, bis);
+  document.getElementById('print-btn').style.display = 'block';
+}
+
+function renderReport(data, von, bis) {
+  const withG = data.filter(d=>d.gewicht);
+  const injections = data.filter(d=>d.mounjaro).sort((a,b)=>a.datum.localeCompare(b.datum));
+  const startG = withG[0]?.gewicht || 135;
+  const endG = withG[withG.length-1]?.gewicht || startG;
+  const diff = (startG - endG).toFixed(1);
+  const days = data.length;
+  const avgDay = days > 1 ? (diff / days).toFixed(2) : 0;
+  const today = new Date();
+
+  // Prognose
+  const recent = withG.slice(-14);
+  let avgRecent = 0;
+  if (recent.length > 1) avgRecent = (recent[0].gewicht - recent[recent.length-1].gewicht) / (recent.length-1);
+  const nextMS = MILESTONES.find(m => endG > m.kg);
+  let progDate = '—', progDays = '—';
+  if (nextMS && avgRecent > 0) {
+    const d = Math.ceil((endG - nextMS.kg) / avgRecent);
+    const pd = new Date(); pd.setDate(pd.getDate()+d);
+    progDate = fmtDate(toISO(pd));
+    progDays = d;
+  }
+
+  // Weeks
+  const weeks = {};
+  data.forEach(e => {
+    const d = new Date(e.datum+'T12:00:00');
+    const mon = new Date(d); mon.setDate(d.getDate()-((d.getDay()+6)%7));
+    const wk = toISO(mon);
+    if (!weeks[wk]) weeks[wk] = {entries:[], mon};
+    weeks[wk].entries.push(e);
+  });
+
+  // Milestones with dates
+  const msWithDates = MILESTONES.map(m => {
+    const firstBelow = withG.find(e=>e.gewicht<=m.kg);
+    const done = endG <= m.kg || firstBelow;
+    return {...m, done: !!done, date: firstBelow?.datum || null};
+  });
+
+  const html = `
+  <div class="report" id="the-report">
+
+    <!-- HEADER -->
+    <div class="report-header">
+      <div>
+        <div class="report-header-title">Medizinischer Auszug – Abnehmprotokoll</div>
+        <div class="report-header-sub">
+          Mounjaro-Therapie (Tirzepatid) · 16:8 Intervallfasten<br>
+          Zeitraum: <strong>${fmtDate(von)} – ${fmtDate(bis)}</strong> · ${days} Tage
+        </div>
+      </div>
+      <div class="report-header-right">
+        Erstellt: <strong>${fmtDate(toISO(today))}</strong><br>
+        Startgewicht: <strong>${startG} kg</strong><br>
+        Zur Vorlage bei der Hausärztin
+      </div>
+    </div>
+
+    <!-- KENNZAHLEN -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-header-icon">📊</span>
+        <span class="section-header-title">Kennzahlen auf einen Blick</span>
+        <span class="section-header-sub">${fmtDate(von)} – ${fmtDate(bis)}</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-box"><div class="metric-val">${startG} kg</div><div class="metric-lbl">Startgewicht<br>${fmtDate(von)}</div></div>
+        <div class="metric-box highlight"><div class="metric-val">${endG} kg</div><div class="metric-lbl">Aktuell<br>${fmtDate(bis)}</div></div>
+        <div class="metric-box highlight"><div class="metric-val" style="color:#0F6E56">-${diff} kg</div><div class="metric-lbl">Verlust<br>gesamt</div></div>
+        <div class="metric-box"><div class="metric-val">-${avgDay}</div><div class="metric-lbl">kg pro Tag<br>Durchschnitt</div></div>
+        <div class="metric-box"><div class="metric-val">99 kg</div><div class="metric-lbl">Zielgewicht</div></div>
+        <div class="metric-box"><div class="metric-val" style="color:#EF9F27">${(endG-99).toFixed(1)} kg</div><div class="metric-lbl">Noch bis<br>zum Ziel</div></div>
+      </div>
+    </div>
+
+    <!-- GEWICHTSVERLAUF -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-header-icon">📈</span>
+        <span class="section-header-title">Gewichtsverlauf</span>
+        <span class="section-header-sub">Rote Punkte = Mounjaro-Injektion</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="reportChart" role="img" aria-label="Gewichtsverlauf von ${startG} auf ${endG} kg"></canvas>
+      </div>
+      <div class="chart-legend">🟠 130 kg Meilenstein · 🟣 125 kg Meilenstein · ⚫ Injektion · Grau = 120 kg (nächstes Ziel)</div>
+    </div>
+
+    <!-- PROGNOSE -->
+    ${nextMS ? `
+    <div class="section">
+      <div class="section-header violet">
+        <span class="section-header-icon">🎯</span>
+        <span class="section-header-title">Prognose nächster Meilenstein</span>
+        <span class="section-header-sub">Basis: Ø letzte 14 Tage</span>
+      </div>
+      <div class="prognose-box">
+        <div class="prognose-item"><div class="prognose-val">${endG} kg</div><div class="prognose-lbl">Aktuell</div></div>
+        <div class="prognose-divider"></div>
+        <div class="prognose-item"><div class="prognose-val">${nextMS.icon} ${nextMS.kg} kg</div><div class="prognose-lbl">Nächstes Ziel</div></div>
+        <div class="prognose-divider"></div>
+        <div class="prognose-item"><div class="prognose-val">${(endG-nextMS.kg).toFixed(1)} kg</div><div class="prognose-lbl">Noch</div></div>
+        <div class="prognose-divider"></div>
+        <div class="prognose-item"><div class="prognose-val">-${avgRecent.toFixed(2)} kg</div><div class="prognose-lbl">Ø/Tag (14 Tage)</div></div>
+        <div class="prognose-divider"></div>
+        <div class="prognose-item"><div class="prognose-val">ca. ${progDate}</div><div class="prognose-lbl">Voraussichtlich</div></div>
+      </div>
+    </div>` : ''}
+
+    <!-- MOUNJARO -->
+    <div class="section page-break">
+      <div class="section-header coral">
+        <span class="section-header-icon">💉</span>
+        <span class="section-header-title">Mounjaro-Injektionsprotokoll</span>
+        <span class="section-header-sub">Tirzepatid · jeden Sonntag ~21:00 Uhr · subkutan</span>
+      </div>
+      <p style="font-size:12px;color:#712B13;background:#FAECE7;padding:8px 12px;border-radius:6px;margin-bottom:10px;line-height:1.5">
+        Applikation: <strong>subkutan, jeden Sonntag ~21:00 Uhr</strong> · Nebenwirkungen werden im Schlaf überbrückt ·
+        Ernährung: <strong>16:8 Intervallfasten</strong> (12–20 Uhr) · Joghurt mit Akazienfasern ~06:00 Uhr (med. Ausnahme)
+      </p>
+      <table>
+        <thead><tr class="th-coral">
+          <th>#</th><th>Datum</th><th>Dosis</th><th>Gewicht</th><th>7 Tage später</th><th>Effekt</th><th>Notiz</th>
+        </tr></thead>
+        <tbody>
+          ${injections.map((inj,i) => {
+            const d7 = new Date(inj.datum+'T12:00:00'); d7.setDate(d7.getDate()+7);
+            const d7iso = toISO(d7);
+            const later = withG.find(e=>e.datum>=d7iso);
+            const eff = (inj.gewicht && later?.gewicht) ? (later.gewicht - inj.gewicht).toFixed(1) : '—';
+            const effClass = parseFloat(eff)<0 ? 'teal' : 'gray';
+            return `<tr class="inj-row">
+              <td><strong>${i+1}</strong></td>
+              <td>${fmtDate(inj.datum)}</td>
+              <td><span class="badge badge-coral">${inj.mounjaro_dosis||'—'}</span></td>
+              <td>${inj.gewicht?inj.gewicht+' kg':'—'}</td>
+              <td>${later?.gewicht?later.gewicht+' kg':'—'}</td>
+              <td class="${effClass}">${parseFloat(eff)<0?eff+' kg':eff}</td>
+              <td style="color:#6B7280;font-style:italic">${inj.notiz||'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- MEILENSTEINE -->
+    <div class="section">
+      <div class="section-header violet">
+        <span class="section-header-icon">🏆</span>
+        <span class="section-header-title">Meilensteine & Fortschritt</span>
+        <span class="section-header-sub">Aktuell: ${endG} kg · Ziel: 99 kg · Noch: ${(endG-99).toFixed(1)} kg</span>
+      </div>
+      <table>
+        <thead><tr class="th-violet">
+          <th></th><th>Ziel</th><th>Verlust</th><th>Status</th><th>Erreicht am</th><th>Anmerkung</th>
+        </tr></thead>
+        <tbody>
+          ${msWithDates.map((m,i) => {
+            const isNext = !m.done && msWithDates.filter(x=>x.done).length === i;
+            return `<tr class="${m.done?'milestone-done':isNext?'milestone-next':''}">
+              <td style="font-size:16px;text-align:center">${m.icon}</td>
+              <td><strong>${m.kg} kg</strong></td>
+              <td style="color:#6B7280">-${135-m.kg} kg</td>
+              <td>${m.done?'<span class="badge badge-green">✓ Erreicht</span>':isNext?'<span class="badge badge-violet">→ Nächstes</span>':'<span class="badge badge-gray">Ausstehend</span>'}</td>
+              <td class="${m.done?'teal':'gray'}">${m.date?fmtDate(m.date):'—'}</td>
+              <td style="color:#6B7280;font-style:italic">${m.label}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WOCHENVERLAUF -->
+    <div class="section">
+      <div class="section-header dark">
+        <span class="section-header-icon">📅</span>
+        <span class="section-header-title">Wochenverlauf</span>
+        <span class="section-header-sub">KW-Übersicht</span>
+      </div>
+      <table>
+        <thead><tr class="th-dark">
+          <th>Woche</th><th>Zeitraum</th><th>Start kg</th><th>Ende kg</th><th>Differenz</th><th>Injektion(en)</th>
+        </tr></thead>
+        <tbody>
+          ${Object.entries(weeks).sort().map(([wk, w]) => {
+            const wWithG = w.entries.filter(e=>e.gewicht);
+            const ws = wWithG[0]?.gewicht; const we = wWithG[wWithG.length-1]?.gewicht;
+            const wd = (ws&&we) ? (we-ws).toFixed(1) : '—';
+            const dc = parseFloat(wd)<0?'teal':parseFloat(wd)>0?'coral':'gray';
+            const mon = w.mon;
+            const sun = new Date(mon); sun.setDate(sun.getDate()+6);
+            const injW = w.entries.filter(e=>e.mounjaro);
+            return `<tr>
+              <td><strong>KW ${getKW(wk)}</strong></td>
+              <td style="color:#6B7280">${mon.getDate()}.${mon.getMonth()+1}.–${sun.getDate()}.${sun.getMonth()+1}.</td>
+              <td>${ws||'—'}</td>
+              <td>${we||'—'}</td>
+              <td class="${dc}"><strong>${wd!=='—'?wd+' kg':'—'}</strong></td>
+              <td style="color:#6B7280">${injW.map(i=>`${fmtDate(i.datum)} (${i.mounjaro_dosis||'?'})`).join(', ')||'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ERNÄHRUNGSPROTOKOLL -->
+    <div class="section page-break">
+      <div class="section-header">
+        <span class="section-header-icon">🍽️</span>
+        <span class="section-header-title">Ernährungsprotokoll</span>
+        <span class="section-header-sub">* = Injektionstag</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Datum</th><th>Gew.</th><th>Frühstück</th><th>Mittagessen</th><th>Abendessen</th><th>Snack</th><th>Notiz</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(d => `<tr ${d.mounjaro?'class="inj-row"':''}>
+            <td><strong style="${d.mounjaro?'color:#D85A30':''}">${fmtDate(d.datum).slice(0,5)}${d.mounjaro?' *':''}</strong></td>
+            <td><strong style="color:#0F6E56">${d.gewicht||'—'}</strong></td>
+            <td style="font-size:11px">${d.fruehstueck||'—'}</td>
+            <td style="font-size:11px">${d.mittagessen||'—'}</td>
+            <td style="font-size:11px">${d.abendessen||'—'}</td>
+            <td style="font-size:11px">${d.nachmittagssnack||'—'}</td>
+            <td style="font-size:11px;color:#6B7280;font-style:italic">${d.notiz||''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:#6B7280;margin-top:8px">* Rot = Mounjaro-Injektionstag</p>
+    </div>
+
+    <!-- DISCLAIMER -->
+    <div class="section">
+      <div class="disclaimer">
+        Alle Gewichtsangaben: Eigenangaben (Morgenmessung, nüchtern). 
+        Ernährungskonzept: 16:8 Intervallfasten, Essenszeit 12–20 Uhr. 
+        Joghurt mit Akazienfasern täglich ~06:00 Uhr als medizinisch empfohlene Ausnahme zur Verdauungsanregung bei Mounjaro. 
+        Mounjaro (Tirzepatid) jeden Sonntag ~21:00 Uhr subkutan. 
+        Prognose basiert auf Ø-Verlust der letzten 14 Tage und dient nur zur Orientierung.
+        Erstellt am ${fmtDate(toISO(today))}.
+      </div>
+    </div>
+
+  </div>`;
+
+  document.getElementById('report-area').innerHTML = html;
+
+  // Draw chart
+  setTimeout(() => drawChart(withG, data), 100);
+}
+
+function drawChart(withG, allEntries) {
+  const canvas = document.getElementById('reportChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = 180;
+  canvas.width = W; canvas.height = H;
+  const pl=44, pr=16, pt=10, pb=28;
+  const cw=W-pl-pr, ch=H-pt-pb;
+  const weights = withG.map(d=>d.gewicht);
+  if (weights.length < 2) return;
+  const mn=Math.floor(Math.min(...weights))-2;
+  const mx=Math.ceil(Math.max(...weights))+1;
+  const n=weights.length;
+  const xp = i => pl + i*cw/(n-1);
+  const yp = g => pt + (mx-g)/(mx-mn)*ch;
+  // grid
+  for(let g=mn;g<=mx;g++) {
+    const y=yp(g);
+    ctx.strokeStyle='#F0F0F0'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(pl+cw,y); ctx.stroke();
+    if(g%2===0||mx-mn<=6) { ctx.fillStyle='#9CA3AF'; ctx.font='9px Arial'; ctx.textAlign='right'; ctx.fillText(g,pl-4,y+3); }
+  }
+  // milestone lines
+  [[130,'#EF9F27','130✓'],[125,'#534AB7','125✓'],[120,'#CCCCCC','120→']].forEach(([g,col,lbl])=>{
+    if(g<mn||g>mx) return;
+    const y=yp(g);
+    ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(pl+cw,y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=col; ctx.font='bold 8px Arial'; ctx.textAlign='left';
+    ctx.fillText(lbl,pl+cw+2,y+3);
+  });
+  // area
+  ctx.beginPath(); ctx.moveTo(xp(0),pt+ch);
+  withG.forEach((_,i)=>ctx.lineTo(xp(i),yp(weights[i])));
+  ctx.lineTo(xp(n-1),pt+ch); ctx.closePath();
+  ctx.fillStyle='rgba(29,158,117,0.08)'; ctx.fill();
+  // line
+  ctx.beginPath(); ctx.strokeStyle='#1D9E75'; ctx.lineWidth=2; ctx.setLineDash([]);
+  withG.forEach((d,i)=>{ if(i===0) ctx.moveTo(xp(i),yp(d.gewicht)); else ctx.lineTo(xp(i),yp(d.gewicht)); });
+  ctx.stroke();
+  // inj markers
+  withG.forEach((d,i)=>{ if(d.mounjaro) { ctx.fillStyle='#D85A30'; ctx.beginPath(); ctx.arc(xp(i),yp(d.gewicht),4,0,Math.PI*2); ctx.fill(); }});
+  // x labels
+  ctx.fillStyle='#9CA3AF'; ctx.font='8px Arial'; ctx.textAlign='center';
+  const step=Math.max(1,Math.floor(n/12));
+  withG.forEach((d,i)=>{ if(i%step===0) ctx.fillText(d.datum.slice(5).replace('-','.'),xp(i),H-6); });
+}
+
+async function init() {
+  await loadData();
+  // Set default bis to today
+  document.getElementById('f-bis').value = toISO(new Date());
+  // Auto-generate full report
+  setFullRange();
+  generateReport();
+}
+
+init();
+</script>
+</body>
+</html>
